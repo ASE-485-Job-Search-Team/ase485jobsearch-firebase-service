@@ -22,15 +22,15 @@ router.post("/", async (req, res) => {
     try {
         //console.log(req.body)
         const data = req.body;
+        var admin_id
         if (data.hasOwnProperty("admin_id")) {
-            const admin = await AdminRef.doc(data.admin_id).set(data).then(
-                res.status(200).json({ 'post': 'success' })
-            );
         } else {
-            const admin = await AdminRef.doc().set(data).then(
-                res.status(200).json({ 'post': 'success' })
-            );
+            //create new random id
+            data.admin_id = AdminRef.doc().id
         }
+        const admin = await AdminRef.doc(data.admin_id).set(data).then(
+            res.status(200).json({ 'post': 'success' })
+        );
 
 
     } catch (err) {
