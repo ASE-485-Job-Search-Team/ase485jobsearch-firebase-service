@@ -146,8 +146,8 @@ router.post('/submit', async (req, res) => {
         const resume_id = req.body.resume_id
         const job_id = req.body.job_id
         //add resume_id to list of application
-        var job = await (await jobRef.doc(job_id).get()).data
-        job.application.push(resume_id)
+        var job = await (await jobRef.doc(job_id).get()).data()
+        job.application.push(resume_id);
         await jobRef.doc(job_id).update(job).then(
             async () => {
                 //add job_id to users list of application
@@ -165,5 +165,57 @@ router.post('/submit', async (req, res) => {
     }
 })
 router.use(validationErrorMiddleware)
+
+//Getting all applications from a job posting
+//req.body {job_id: String}
+router.get('/jobResumes', async (req, res) => {
+    try {
+        //get application array from job_id
+        //get resume_id from array
+        const job_id = req.body.job_id
+        const result = await jobRef.doc(job_id).get()
+        res.status(200).json(result.data().application)
+    }
+    catch (err) {
+        res.status(400).send(err.message)
+    }
+})
+
+
+
+router.get('/jobUsers', async (req, res) => {
+    try {
+        //get array of resume_id
+        const job_id = req.body.job_id
+        var resumes = (await jobRef.doc(job_id).get()).data().application
+        //get user_id from resume_id
+        var user_ids = []
+        resumes = resumes.filter((value, index, array) => array.indexOf(value) === index);
+
+
+        for (let i = 0; i < resumes.length; i++) {
+            result = (await resumeRef.doc(resumes[i]).get()).data().user_id
+            user_ids.push(result)
+        }
+
+
+        //get all users data from user_id
+        var user_data = []
+
+        for (let i = 0; i < user_ids.length; i++) {
+            result = (await userRef.doc(user_ids[i]).get()).data();
+
+            user_data.push(result)
+        }
+        res.status(200).json(user_data)
+    }
+    catch (err) {
+        res.status(400).send(err.message)
+    }
+})
+
+
+
+
 
 module.exports = router 

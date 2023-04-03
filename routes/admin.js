@@ -9,6 +9,7 @@ const { bucket, db } = require("../util/admin");
 
 
 const AdminRef = db.collection('Admins');
+const jobRef = db.collection('Job');
 
 router.use(express.json())
 
@@ -72,6 +73,26 @@ router.delete("/", async (req, res) => {
         res.status(400).send(err.message)
     }
 })
+
+router.get("/jobs", async (req, res) => {
+    try {
+        //console.log(req.body)
+        const admin_id = req.body.admin_id
+        var result = await AdminRef.doc(admin_id).get()
+        var jobs = result.data().jobs
+        jobs = jobs.filter((value, index, array) => array.indexOf(value) === index);
+        var jobs_data = []
+
+        for (let i = 0; i < jobs.length; i++) {
+            result = (await jobRef.doc(jobs[i]).get()).data()
+            jobs_data.push(result)
+        }
+        res.status(200).json(jobs_data)
+    } catch (err) {
+        res.status(400).send(err.message)
+    }
+})
+
 
 
 module.exports = router 

@@ -12,6 +12,7 @@ describe('Admin API', () => {
             name: 'John Doe',
             email: 'johndoe@example.com',
             password: 'password',
+            application: []
         };
 
         chai.request(app)
@@ -56,6 +57,7 @@ describe('Admin API', () => {
                 done();
             });
     });
+
 
 
 

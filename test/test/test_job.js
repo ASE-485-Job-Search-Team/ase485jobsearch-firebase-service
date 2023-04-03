@@ -12,7 +12,7 @@ describe('Job API', () => {
             name: 'asdf',
             email: 'asdf',
             password: 'asdf',
-            jobs: []
+            jobs: ["1"]
         };
         chai.request(app)
             .post('/admin')
@@ -76,6 +76,7 @@ describe('Job API', () => {
             "location": "New York, NY",
             "jobType": "Full-time",
             "description": "We're looking for a talented software engineer to join our team and help us build amazing products.",
+            "application": ["1"],
             "qualifications": [
                 "Bachelor's degree in Computer Science or related field",
                 "3+ years of experience in software development",
@@ -90,6 +91,7 @@ describe('Job API', () => {
                 "Participate in code reviews and contribute to continuous improvement of our development processes",
                 "Stay up-to-date with emerging trends and technologies in software development"
             ],
+
             "datePosted": "2022-12-01T00:00:00.000",
             "dateClosing": "2023-01-31T00:00:00.000",
             "companyLogo": "https://companiesmarketcap.com/img/company-logos/64/GOOG.webp",
@@ -125,6 +127,45 @@ describe('Job API', () => {
             .send()
             .end((err, res) => {
                 expect(res.statusCode).to.equal(200);
+                done();
+            });
+    });
+
+    it('should get resumes sent to job', (done) => {
+
+        chai.request(app)
+            .get('/job/jobResumes')
+            .send({ job_id: "1" })
+            .end((err, res) => {
+                expect(res.statusCode).to.equal(200);
+                expect(res.body).to.be.an('array').that.is.length(1);
+                done();
+            });
+    });
+
+
+    it('should get jobs from admin profile', (done) => {
+        const admin_id = '2';
+
+        chai.request(app)
+            .get('/admin/jobs')
+            .send({ admin_id: admin_id })
+            .end((err, res) => {
+                expect(res.statusCode).to.equal(200);
+                expect(res.body).to.be.an('array').that.is.length(1);
+                done();
+            });
+    });
+
+    it('should get users from job', (done) => {
+        const job = '1';
+
+        chai.request(app)
+            .get('/job/jobUsers')
+            .send({ job_id: job })
+            .end((err, res) => {
+                expect(res.statusCode).to.equal(200);
+                expect(res.body).to.be.an('array').that.is.length(1);
                 done();
             });
     });
