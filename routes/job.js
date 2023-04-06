@@ -72,6 +72,12 @@ router.post("/", async (req, res) => {
         }
         //update admin first
         const admin = await adminRef.doc(data.admin_id).get()
+
+        if (result.empty) {
+            res.status(200).send('Invalid admin ID.');
+            return;
+        }
+
         var updated = admin.data()
         updated.jobs.push(data.job_id);
         adminRef.doc(data.admin_id).set(updated).then(
@@ -86,12 +92,17 @@ router.post("/", async (req, res) => {
     }
 })
 
-router.get("/", async (req, res) => {
+router.get("/posting/:job_id", async (req, res) => {
 
     try {
         //console.log(req.body)
-        const job_id = req.body.job_id
+        const job_id = req.params.job_id
         const result = await jobRef.doc(job_id).get()
+        if (!result.exists) {
+            res.status(200).json('No matching documents.');
+            return;
+        }
+
         res.status(200).json(result.data())
     } catch (err) {
         res.status(400).send(err.message)
