@@ -19,45 +19,6 @@ router.use((req, res, next) => {
     next()
 })
 
-const { testJobSchema } = require("../models/job.js")
-
-const {
-    Validator,
-    ValidationError,
-} = require("express-json-validator-middleware");
-
-const { validate } = new Validator();
-
-function validationErrorMiddleware(error, request, response, next) {
-    if (response.headersSent) {
-        return next(error);
-    }
-
-    const isValidationError = error instanceof ValidationError;
-    if (!isValidationError) {
-        return next(error);
-    }
-
-    response.status(400).json({
-        errors: error.validationErrors,
-    });
-
-    next();
-}
-
-const jobSchema = {
-    type: 'object',
-    required: ["test"],
-    properties: {
-        test: {
-            type: 'string',
-        }
-
-    }
-}
-console.log(jobSchema)
-
-
 //CRUD operations for job profile
 //req.body 
 router.post("/", async (req, res) => {
@@ -99,7 +60,7 @@ router.get("/posting/:job_id", async (req, res) => {
         const job_id = req.params.job_id
         const result = await jobRef.doc(job_id).get()
         if (!result.exists) {
-            res.status(200).json('No matching documents.');
+            res.status(200).json({ 'msg': 'no results' })
             return;
         }
 
@@ -138,44 +99,20 @@ router.delete("/", async (req, res) => {
 
 
 //returns 50 job posts
-router.get("/feed", async (req, res) => {
+router.get("/job-postings", async (req, res) => {
     try {
-        const result = await jobRef.listDocuments()
-        res.json(result)
+        const result = await jobRef.get()
+        if (!result.exists) {
+            res.status(200).json({ 'msg': 'no results' })
+        } else {
+            res.status(200).json(result.docs.map(doc => doc.data()))
+        }
+
     } catch (err) {
         res.status(400).send(err.message)
     }
 })
 
-
-//submitting a job application
-
-//req.body {resume_id: String,job_id : String} sends resume with resume_id to job at job_id
-router.post('/submit', async (req, res) => {
-    try {
-
-        const resume_id = req.body.resume_id
-        const job_id = req.body.job_id
-        //add resume_id to list of application
-        var job = await (await jobRef.doc(job_id).get()).data()
-        job.application.push(resume_id);
-        await jobRef.doc(job_id).update(job).then(
-            async () => {
-                //add job_id to users list of application
-                var resume = await (await resumeRef.doc(resume_id).get()).data()
-                var user = await (await userRef.doc(resume.user_id).get()).data()
-                user.application.push(job_id)
-                userRef.doc(resume.user_id).update(user).then(
-                    res.status(200).json({ 'put': 'success' })
-                );
-            }
-        );
-
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
-router.use(validationErrorMiddleware)
 
 //Getting all applications from a job posting
 //req.body {job_id: String}
@@ -185,6 +122,11 @@ router.get('/jobResumes', async (req, res) => {
         //get resume_id from array
         const job_id = req.body.job_id
         const result = await jobRef.doc(job_id).get()
+        if (result.empty) {
+            res.status(200).json({ 'msg': 'no results' })
+        } else {
+
+        }
         res.status(200).json(result.data().application)
     }
     catch (err) {

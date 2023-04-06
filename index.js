@@ -9,10 +9,10 @@ var bodyParser = require('body-parser');
 const PORT = process.env.PORT || 5050
 
 
-app.use('/users', user)
-app.use('/admin', admin)
-app.use('/resume', resume)
-app.use('/job', job)
+app.use('/api/users', user)
+app.use('/api/admin', admin)
+app.use('/api/resume', resume)
+app.use('/api/jobs', job)
 
 
 app.use(bodyParser.urlencoded({ extended: true }));
