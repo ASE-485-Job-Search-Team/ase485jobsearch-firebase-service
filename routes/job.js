@@ -8,6 +8,8 @@ const upload = multer({ storage: storage }).single('file');
 const { bucket, db } = require("../util/admin");
 
 const jobRef = db.collection('Job');
+const jobPostingRef = db.collection('JobPosting');
+const companyRef = db.collection('Company');
 const userRef = db.collection('Users');
 const resumeRef = db.collection('Resumes');
 const adminRef = db.collection('Admins');
@@ -126,33 +128,57 @@ router.delete("/", async (req, res) => {
 //returns JSON array of job postings, {offset: int, limit: int}//to be implemented
 
 
-//returns 50 job posts
-router.get("/feed", async (req, res) => {
+// Route to get all job postings
+router.get("/job-postings", async (req, res) => {
     try {
-        const result = await jobRef.listDocuments()
-        res.json(result)
+        // Get all job postings
+        const jobPostings = await jobPostingRef.get();
+
+        // Use Promise.all() to map over the job postings and get the associated company data for each one
+        const data = await Promise.all(
+            jobPostings.docs.map(async (jobPosting) => {
+                // Get the data for the company associated with the job posting
+                const company = await companyRef.doc(jobPosting.data().companyId).get()
+
+                // Log the job posting and company data to the console
+                console.log({ ...jobPosting.data(), company: company.data() })
+
+                // Return an object with the job posting data, company name and logo, and ID
+                return {
+                    ...jobPosting.data(),
+                    company: company.data().companyName,
+                    companyLogo: company.data().companyLogoURL,
+                    id: jobPosting.id
+                };
+            })
+        );
+
+        // Send the data in the response
+        res.json(data);
     } catch (err) {
-        res.status(400).send(err.message)
+        // Handle any errors
+        res.status(400).send(err.message);
     }
-})
+});
+
 
 
 //submitting a job application
 
-//req.body {resume_id: String,job_id : String} sends resume with resume_id to job at job_id
+//req.body {resume_id: String, job_id : String} sends resume with resume_id to job at job_id
 router.post('/submit', async (req, res) => {
     try {
 
         const resume_id = req.body.resume_id
         const job_id = req.body.job_id
         //add resume_id to list of application
-        var job = await (await jobRef.doc(job_id).get()).data()
+        const job = await (await jobRef.doc(job_id).get()).data()
         job.application.push(resume_id);
         await jobRef.doc(job_id).update(job).then(
             async () => {
                 //add job_id to users list of application
-                var resume = await (await resumeRef.doc(resume_id).get()).data()
-                var user = await (await userRef.doc(resume.user_id).get()).data()
+                const resume = await (await resumeRef.doc(resume_id).get()).data()
+                const user = await (await userRef.doc(resume.user_id).get()).data()
                 user.application.push(job_id)
                 userRef.doc(resume.user_id).update(user).then(
                     res.status(200).json({ 'put': 'success' })
@@ -183,6 +209,7 @@ router.get('/jobResumes', async (req, res) => {
 
 
 
+// Getting all users who applied to a job posting
 router.get('/jobUsers', async (req, res) => {
     try {
         //get array of resume_id
