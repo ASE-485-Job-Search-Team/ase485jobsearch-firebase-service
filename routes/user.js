@@ -65,7 +65,7 @@ router.get("/:userId/applications", async (req, res) => {
         );
 
         // Log the application data to the console
-        console.log(applicationData);
+        // console.log(applicationData);
 
         // Send the application data in the response
         res.json(applicationData);

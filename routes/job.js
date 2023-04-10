@@ -7,8 +7,10 @@ const upload = multer({ storage: storage }).single('file');
 
 const { bucket, db } = require("../util/admin");
 
+const admin = require('firebase-admin');
 const jobRef = db.collection('Job');
 const jobPostingRef = db.collection('JobPosting');
+const jobApplicationRef = db.collection('JobApplication');
 const companyRef = db.collection('Company');
 const userRef = db.collection('Users');
 const resumeRef = db.collection('Resumes');
@@ -88,6 +90,32 @@ router.post("/", async (req, res) => {
     }
 })
 
+router.post("/apply", async (req, res) => {
+    const { userId, jobId } = req.body;
+
+    // Check if the user has already applied for the job
+    const jobApplication = await jobApplicationRef.where('userId', '==', userId).where('jobId', '==', jobId).get();
+
+    if (!jobApplication.empty) {
+        return res.status(400).json({ message: 'User has already applied for this job.' });
+    }
+
+    // Create a new JobApplication document
+    const jobApplicationData = {
+        userId,
+        jobId,
+        id: admin.firestore().collection('JobApplication').doc().id,
+        dateApplied: new Date().toISOString(),
+        status: 'applied',
+    };
+
+    // Save the new JobApplication document to Firebase
+    const jobApplicationDocRef = jobApplicationRef.doc(jobApplicationData.id);
+    await jobApplicationDocRef.set(jobApplicationData);
+
+    return res.status(200).json({ message: 'Job application submitted successfully.' });
+});
+
 router.get("/", async (req, res) => {
 
     try {
@@ -141,7 +169,7 @@ router.get("/job-postings", async (req, res) => {
                 const company = await companyRef.doc(jobPosting.data().companyId).get()
 
                 // Log the job posting and company data to the console
-                console.log({ ...jobPosting.data(), company: company.data() })
+                // console.log({ ...jobPosting.data(), company: company.data() })
 
                 // Return an object with the job posting data, company name and logo, and ID
                 return {
