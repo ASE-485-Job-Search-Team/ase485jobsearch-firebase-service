@@ -7,7 +7,11 @@ const upload = multer({ storage: storage }).single('file');
 
 const { bucket, db } = require("../util/admin");
 
+const admin = require('firebase-admin');
 const jobRef = db.collection('Job');
+const jobPostingRef = db.collection('JobPosting');
+const jobApplicationRef = db.collection('JobApplication');
+const companyRef = db.collection('Company');
 const userRef = db.collection('Users');
 const resumeRef = db.collection('Resumes');
 const adminRef = db.collection('Admins');
@@ -53,21 +57,34 @@ router.post("/", async (req, res) => {
     }
 })
 
-router.get("/posting/:job_id", async (req, res) => {
 
-    try {
-        //console.log(req.body)
-        const job_id = req.params.job_id
-        const result = await jobRef.doc(job_id).get()
-        if (!result.exists) {
-            res.status(200).json({ 'msg': 'no results' })
-            return;
-        }
+router.post("/apply", async (req, res) => {
+    const { userId, jobId } = req.body;
 
-        res.status(200).json(result.data())
-    } catch (err) {
-        res.status(400).send(err.message)
+    // Check if the user has already applied for the job
+    const jobApplication = await jobApplicationRef.where('userId', '==', userId).where('jobId', '==', jobId).get();
+
+    if (!jobApplication.empty) {
+        return res.status(400).json({ message: 'User has already applied for this job.' });
     }
+
+    // Create a new JobApplication document
+    const jobApplicationData = {
+        userId,
+        jobId,
+        id: admin.firestore().collection('JobApplication').doc().id,
+        dateApplied: new Date().toISOString(),
+        status: 'applied',
+    };
+
+    // Save the new JobApplication document to Firebase
+    const jobApplicationDocRef = jobApplicationRef.doc(jobApplicationData.id);
+    await jobApplicationDocRef.set(jobApplicationData);
+
+    return res.status(200).json({ message: 'Job application submitted successfully.' });
+});
+
+router.get("/", async (req, res) => {
 })
 
 router.put("/", async (req, res) => {
@@ -93,20 +110,63 @@ router.delete("/", async (req, res) => {
     }
 })
 
-//API routes for feed
-
-//returns JSON array of job postings, {offset: int, limit: int}//to be implemented
-
-
-//returns 50 job posts
 router.get("/job-postings", async (req, res) => {
     try {
-        const result = await jobRef.get()
-        if (!result.exists) {
-            res.status(200).json({ 'msg': 'no results' })
-        } else {
-            res.status(200).json(result.docs.map(doc => doc.data()))
-        }
+        // Get all job postings
+        const jobPostings = await jobPostingRef.get();
+
+        // Use Promise.all() to map over the job postings and get the associated company data for each one
+        const data = await Promise.all(
+            jobPostings.docs.map(async (jobPosting) => {
+                // Get the data for the company associated with the job posting
+                const company = await companyRef.doc(jobPosting.data().companyId).get()
+
+                // Log the job posting and company data to the console
+                // console.log({ ...jobPosting.data(), company: company.data() })
+
+                // Return an object with the job posting data, company name and logo, and ID
+                return {
+                    ...jobPosting.data(),
+                    company: company.data().companyName,
+                    companyLogo: company.data().companyLogoURL,
+                    id: jobPosting.id
+                };
+            })
+        );
+
+        // Send the data in the response
+        res.json(data);
+    } catch (err) {
+        // Handle any errors
+        res.status(400).send(err.message);
+    }
+});
+
+
+
+//submitting a job application
+
+//req.body {resume_id: String, job_id : String} sends resume with resume_id to job at job_id
+router.post('/submit', async (req, res) => {
+    try {
+
+        const resume_id = req.body.resume_id
+        const job_id = req.body.job_id
+        //add resume_id to list of application
+        const job = await (await jobRef.doc(job_id).get()).data()
+        job.application.push(resume_id);
+        await jobRef.doc(job_id).update(job).then(
+            async () => {
+                //add job_id to users list of application
+                const resume = await (await resumeRef.doc(resume_id).get()).data()
+                const user = await (await userRef.doc(resume.user_id).get()).data()
+                user.application.push(job_id)
+                userRef.doc(resume.user_id).update(user).then(
+                    res.status(200).json({ 'put': 'success' })
+                );
+            }
+        );
+
 
     } catch (err) {
         res.status(400).send(err.message)
@@ -136,6 +196,7 @@ router.get('/jobResumes', async (req, res) => {
 
 
 
+// Getting all users who applied to a job posting
 router.get('/jobUsers', async (req, res) => {
     try {
         //get array of resume_id
