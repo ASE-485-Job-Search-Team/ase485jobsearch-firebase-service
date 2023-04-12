@@ -31,11 +31,11 @@ router.get('/snapshot', async (req, res) => {
     const totalCompanies = await AdminRef.get().then((snapshot) => snapshot.size);
 
     res.status(200).json({
-      totalUsers: totalUsers,
-      totalJobs: totalJobs,
-      newUsersToday: newUsersToday,
-      newJobsToday: newJobsToday,
-      totalCompanies: totalCompanies,
+      total_users: totalUsers,
+      total_jobs: totalJobs,
+      new_users_today: newUsersToday,
+      job_posts_today: newJobsToday,
+      companies: totalCompanies,
     });
   } catch (err) {
     res.status(400).send(err.message);
