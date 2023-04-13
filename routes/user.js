@@ -79,16 +79,24 @@ router.get("/:userId/applications", async (req, res) => {
 
 
 
-router.post("/", async (req, res) => {
+router.post("/create", async (req, res) => {
     try {
         //console.log(req.body)
         const data = req.body;
-        if (data.hasOwnProperty("user_id")) {
+        if (data.hasOwnProperty("userId")) {
+
+            //check if user already exists
+            const userId = req.body.userId
+            const user = await usersRef.where('userId', '==', userId).get();
+            if (!user.empty) {
+                return res.status(400).json({ message: 'User with that userId already exists.' });
+            }
+
         } else {
             //create new random id
-            data.user_id = usersRef.doc().id
+            data.userId = usersRef.doc().id
         }
-        const user = await usersRef.doc(data.user_id).set(data).then(
+        const user = await usersRef.doc(data.userId).set(data).then(
             res.status(200).json({ 'post': 'success' })
         );
     } catch (err) {
@@ -96,90 +104,107 @@ router.post("/", async (req, res) => {
     }
 })
 
-router.get("/:user_id", async (req, res) => {
+router.get("/:userId", async (req, res) => {
 
     try {
-        const user_id = req.params.user_id
-        const result = await usersRef.doc(user_id).get();
-        res.json(result.data())
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
+        const userId = req.params.userId
+        const user = await usersRef.where('userId', '==', userId).get();
 
-router.put("/", async (req, res) => {
-
-    try {
-        const user_id = req.body.user_id
-        usersRef.doc(user_id).update(req.body).then(
-            res.status(200).json({ 'put': 'success' })
-        );
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
-
-router.delete("/", async (req, res) => {
-    try {
-        const user_id = req.body.user_id
-        usersRef.doc(user_id).delete().then(
-            res.status(200).json({ 'post': 'success' })
-        );
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
-
-router.get('/:user_id/application', async (req, res) => {
-    try {
-        //get array of resume_id
-        const user_id = req.params.user_id
-        var appArray = (await usersRef.doc(user_id).get()).data().applications
-        var jobs = []
-        //filter
-        appArray = appArray.filter((value, index, array) => array.indexOf(value) === index);
-
-
-        for (let i = 0; i < appArray.length; i++) {
-            result = (await jobRef.doc(appArray[i]).get()).data()
-            jobs.push(result)
+        if (user.empty) {
+            return res.status(400).json({ message: 'No user found.' });
         }
-
-        res.status(200).json(jobs)
-    }
-    catch (err) {
+        else {
+            //userId SHOULD be unique
+            res.status(200).json(user.docs[0].data())
+        }
+    } catch (err) {
         res.status(400).send(err.message)
     }
 })
+
+router.put("/userId/edit", async (req, res) => {
+    try {
+        const userId = req.params.userId
+        //check if user exists
+        const user = await usersRef.where('userId', '==', userId).get();
+        if (user.empty) {
+            return res.status(400).json({ message: 'No company found.' });
+        }
+        usersRef.doc(userId).update(req.body).then(
+            res.status(200).json({ message: 'edit success' })
+        );
+    } catch (err) {
+        res.status(400).send(err.message)
+    }
+})
+
+router.delete("/:userId/delete", async (req, res) => {
+    try {
+        const userId = req.params.userId
+        //check if user exists
+        const user = await usersRef.where('userId', '==', userId).get();
+        if (user.empty) {
+            return res.status(400).json({ message: 'No company found.' });
+        }
+        usersRef.doc(userId).delete().then(
+            res.status(200).json({ message: 'delete success' })
+        );
+    } catch (err) {
+        res.status(400).send(err.message)
+    }
+})
+
+//depricated
+// router.get('/:userId/application', async (req, res) => {
+//     try {
+//         //get array of resume_id
+//         const user_id = req.params.user_id
+//         var appArray = (await usersRef.doc(user_id).get()).data().applications
+//         var jobs = []
+//         //filter
+//         appArray = appArray.filter((value, index, array) => array.indexOf(value) === index);
+
+
+//         for (let i = 0; i < appArray.length; i++) {
+//             result = (await jobRef.doc(appArray[i]).get()).data()
+//             jobs.push(result)
+//         }
+
+//         res.status(200).json(jobs)
+//     }
+//     catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 
 //submitting a job application
-
+//depricated
 //req.body {resume_id: String,job_id : String} sends resume with resume_id to job at job_id
-router.post('/:user_id/submit/:job_id', async (req, res) => {
-    try {
+// router.post('/:user_id/submit/:job_id', async (req, res) => {
+//     try {
 
-        const resume_id = req.body.resume_id
-        const job_id = req.body.job_id
-        //add resume_id to list of application
-        var job = await (await jobRef.doc(job_id).get()).data()
-        job.application.push(resume_id);
-        await jobRef.doc(job_id).update(job).then(
-            async () => {
-                //add job_id to users list of application
-                var resume = await (await resumeRef.doc(resume_id).get()).data()
-                var user = await (await usersRef.doc(resume.user_id).get()).data()
-                user.application.push(job_id)
-                usersRef.doc(resume.user_id).update(user).then(
-                    res.status(200).json({ 'put': 'success' })
-                );
-            }
-        );
+//         const resume_id = req.body.resume_id
+//         const job_id = req.body.job_id
+//         //add resume_id to list of application
+//         var job = await (await jobRef.doc(job_id).get()).data()
+//         job.application.push(resume_id);
+//         await jobRef.doc(job_id).update(job).then(
+//             async () => {
+//                 //add job_id to users list of application
+//                 var resume = await (await resumeRef.doc(resume_id).get()).data()
+//                 var user = await (await usersRef.doc(resume.user_id).get()).data()
+//                 user.application.push(job_id)
+//                 usersRef.doc(resume.user_id).update(user).then(
+//                     res.status(200).json({ 'put': 'success' })
+//                 );
+//             }
+//         );
 
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 
 
