@@ -11,8 +11,8 @@ const Resume = require('../models/resume')
 
 const ResumesRef = db.collection('Resumes');
 const UsersRef = db.collection('Users');
-const userRef = db.collection('User');
-const resumeRef = db.collection('Resume');
+const userRef = db.collection('User'); //
+const resumeRef = db.collection('Resume'); //
 const companyRef = db.collection('Company');
 const jobPostingRef = db.collection('JobPosting');
 const jobApplicationRef = db.collection('JobApplication');

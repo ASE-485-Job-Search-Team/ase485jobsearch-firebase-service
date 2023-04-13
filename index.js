@@ -1,4 +1,5 @@
 var express = require('express');
+const cors = require('cors');
 var app = express();
 const user = require('./routes/user')
 const resume = require('./routes/resume')
@@ -9,7 +10,7 @@ var bodyParser = require('body-parser');
 
 const PORT = process.env.PORT || 5050
 
-
+app.use(cors());
 app.use('/api/users', user)
 app.use('/admin', admin)
 app.use('/resume', resume)
