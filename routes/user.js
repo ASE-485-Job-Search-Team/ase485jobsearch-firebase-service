@@ -9,10 +9,9 @@ const { bucket, db } = require("../util/admin");
 const User = require('../models/user')
 const Resume = require('../models/resume')
 
-const ResumesRef = db.collection('Resumes');
+const ResumesRef = db.collection('Resume');
 
-const UsersRef = db.collection('Users');
-const userRef = db.collection('User'); //
+const usersRef = db.collection('Users');
 const resumeRef = db.collection('Resume'); //
 const companyRef = db.collection('Company');
 const jobPostingRef = db.collection('JobPosting');
@@ -87,7 +86,7 @@ router.post("/", async (req, res) => {
         if (data.hasOwnProperty("user_id")) {
         } else {
             //create new random id
-            data.user_id = UserRef.doc().id
+            data.user_id = usersRef.doc().id
         }
         const user = await usersRef.doc(data.user_id).set(data).then(
             res.status(200).json({ 'post': 'success' })
@@ -169,9 +168,9 @@ router.post('/:user_id/submit/:job_id', async (req, res) => {
             async () => {
                 //add job_id to users list of application
                 var resume = await (await resumeRef.doc(resume_id).get()).data()
-                var user = await (await userRef.doc(resume.user_id).get()).data()
+                var user = await (await usersRef.doc(resume.user_id).get()).data()
                 user.application.push(job_id)
-                userRef.doc(resume.user_id).update(user).then(
+                usersRef.doc(resume.user_id).update(user).then(
                     res.status(200).json({ 'put': 'success' })
                 );
             }
