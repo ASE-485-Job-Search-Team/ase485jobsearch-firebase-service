@@ -11,7 +11,8 @@ const Resume = require('../models/resume')
 
 const ResumesRef = db.collection('Resume');
 
-const usersRef = db.collection('Users');
+const usersRef = db.collection('Users'); // Need to change to User
+const userRef = db.collection('User');
 const resumeRef = db.collection('Resume'); //
 const companyRef = db.collection('Company');
 const jobPostingRef = db.collection('JobPosting');
@@ -33,6 +34,13 @@ router.get("/:userId/applications", async (req, res) => {
     try {
         // Get the user ID from the request parameters
         const userId = req.params.userId;
+        const user = await userRef.doc(userId).get();
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
 
         // Get all job applications where the user ID matches
         const applications = await jobApplicationRef.where("userId", "==", userId).get();
@@ -56,6 +64,8 @@ router.get("/:userId/applications", async (req, res) => {
                 return {
                     ...applicationData,
                     id: applicationId,
+                    name: userData.fullName,
+                    resumeUrl: resumeData.downloadUrl,
                     jobPosting: {
                         ...jobPostingData,
                         id: jobPosting.id,
@@ -66,14 +76,28 @@ router.get("/:userId/applications", async (req, res) => {
             })
         );
 
-        // Log the application data to the console
-        // console.log(applicationData);
-
         // Send the application data in the response
         res.json(applicationData);
     } catch (err) {
         // Handle any errors
         res.status(400).send(err.message);
+    }
+});
+
+router.get("/:userId/resume", async (req, res) => {
+    try {
+        const userId = req.params.userId
+        const user = await userRef.doc(userId).get();
+
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
+        res.json(resumeData);
+    } catch (err) {
+        res.status(400).send(err.message)
     }
 });
 

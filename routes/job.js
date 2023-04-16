@@ -23,6 +23,39 @@ router.use((req, res, next) => {
     next()
 })
 
+router.get("/job-postings", async (req, res) => {
+    try {
+        // Get all job postings
+        const jobPostings = await jobPostingRef.get();
+        console.log(jobPostings.docs[0].data());
+
+        // Use Promise.all() to map over the job postings and get the associated company data for each one
+        const data = await Promise.all(
+            jobPostings.docs.map(async (jobPosting) => {
+                // Get the data for the company associated with the job posting
+                const company = await companyRef.doc(jobPosting.data().companyId).get()
+
+                // Log the job posting and company data to the console
+                console.log({ ...jobPosting.data(), company: company.data().companyName, company: company.data().companyLogoURL, id: jobPosting.id });
+
+                // Return an object with the job posting data, company name and logo, and ID
+                return {
+                    ...jobPosting.data(),
+                    company: company.data().companyName,
+                    companyLogo: company.data().companyLogoURL,
+                    id: jobPosting.id
+                };
+            })
+        );
+
+        // Send the data in the response
+        res.json(data);
+    } catch (err) {
+        // Handle any errors
+        res.status(400).send(err.message);
+    }
+});
+
 //CRUD operations for job profile
 //req.body 
 router.post("/create", async (req, res) => {
@@ -130,40 +163,6 @@ router.get("/:jobId", async (req, res) => {
         res.status(400).send(err.message)
     }
 })
-
-router.get("/job-postings", async (req, res) => {
-    try {
-        // Get all job postings
-        const jobPostings = await jobPostingRef.get();
-
-        // Use Promise.all() to map over the job postings and get the associated company data for each one
-        const data = await Promise.all(
-            jobPostings.docs.map(async (jobPosting) => {
-                // Get the data for the company associated with the job posting
-                const company = await companyRef.doc(jobPosting.data().companyId).get()
-
-                // Log the job posting and company data to the console
-                // console.log({ ...jobPosting.data(), company: company.data() })
-
-                // Return an object with the job posting data, company name and logo, and ID
-                return {
-                    ...jobPosting.data(),
-                    company: company.data().companyName,
-                    companyLogo: company.data().companyLogoURL,
-                    id: jobPosting.id
-                };
-            })
-        );
-
-        // Send the data in the response
-        res.json(data);
-    } catch (err) {
-        // Handle any errors
-        res.status(400).send(err.message);
-    }
-});
-
-
 
 //submitting a job application now is post("/apply")
 
