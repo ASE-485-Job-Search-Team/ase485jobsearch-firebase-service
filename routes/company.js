@@ -13,6 +13,7 @@ const jobRef = db.collection('Job');
 const userRef = db.collection('User');
 const resumeRef = db.collection('Resume');
 const jobApplicationRef = db.collection('JobApplication');
+const jobPostingRef = db.collection('JobPosting');
 
 router.use(express.json())
 
@@ -112,17 +113,17 @@ router.get("/:companyId/jobs", async (req, res) => {
     try {
         const companyId = req.params.companyId
         //check if company exists
-        const company = await companyRef.where('companyId', '==', companyId).get();
-        if (company.empty) {
+        const companySnapshot = await companyRef.where('companyId', '==', companyId).get();
+        if (companySnapshot.empty) {
             return res.status(400).json({ message: 'No company found.' });
         }
-        const jobsSnapshot = await jobRef.where('companyId', '==', companyId).get();
-        const jobsData = [];
-        jobsSnapshot.forEach((doc) => {
-            jobsData.push(doc.data());
+        const companyData = companySnapshot.docs[0].data()
+        const jobPostingSnapshot = await jobPostingRef.where('companyId', '==', companyId).get();
+        const jobPostingData = [];
+        jobPostingSnapshot.forEach((doc) => {
+            jobPostingData.push({ ...doc.data(), company: companyData.companyName, companyLogo: companyData.companyLogoURL, companyId: companyData.companyId, id: doc.id });
         });
-        res.status(200).json(jobsData);
-
+        res.status(200).json(jobPostingData);
     } catch (err) {
         res.status(400).send(err.message)
     }
@@ -134,21 +135,33 @@ router.get("/:companyId/jobs/:jobId/jobApplications", async (req, res) => {
         const companyId = req.params.companyId
         const jobId = req.params.jobId
         //check if company exists
-        const company = await companyRef.where('companyId', '==', companyId).get();
-        if (company.empty) {
+        const companySnapshot = await companyRef.where('companyId', '==', companyId).get();
+        if (companySnapshot.empty) {
             return res.status(400).json({ message: 'No company found.' });
         }
+        const companyData = companySnapshot.docs[0].data()
         //check if job exists
-        const job = await jobRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
-        if (job.empty) {
+        const jobPostingSnapshot = await jobPostingRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
+        if (jobPostingSnapshot.empty) {
             return res.status(400).json({ message: 'No job found.' });
         }
         const applications = await jobApplicationRef.where('jobId', '==', jobId).get();
-        const jobApplicationData = [];
-        applications.forEach((doc) => {
-            jobApplicationData.push(doc.data());
-        });
-        res.status(200).json(jobApplicationData);
+        const applicationData = await Promise.all(applications.docs.map(async (doc) => {
+            const userData = await userRef.doc(doc.data().userId).get();
+            const resumeSnapshot = await resumeRef.where('userId', '==', userData.data().userId).get();
+            if (resumeSnapshot.empty) {
+                return;
+            }
+            const resumeData = resumeSnapshot.docs[0].data();
+            return ({
+                ...doc.data(),
+                name: userData.data().fullName,
+                resumeUrl: resumeData.downloadUrl,
+                jobPosting: { ...jobPostingSnapshot.docs[0].data(), company: companyData.companyName, companyLogo: companyData.companyLogoURL, companyId: companyData.companyId, id: jobPostingSnapshot.docs[0].id },
+                id: doc.id
+            });
+        }));
+        res.status(200).json(applicationData);
 
     } catch (err) {
         res.status(400).send(err.message)
