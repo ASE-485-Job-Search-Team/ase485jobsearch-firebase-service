@@ -2,9 +2,9 @@ const express = require('express');
 const router = express.Router();
 const { db } = require('../util/admin');
 
-const UsersRef = db.collection('Users');
+const UsersRef = db.collection('User');
 const JobRef = db.collection('Job');
-const AdminRef = db.collection('Admins');
+const CompanyRef = db.collection('Company');
 
 router.use(express.json())
 
@@ -28,7 +28,7 @@ router.get('/snapshot', async (req, res) => {
 
     const newJobsToday = await JobRef.where('created_at', '>=', today).get().then((snapshot) => snapshot.size);
 
-    const totalCompanies = await AdminRef.get().then((snapshot) => snapshot.size);
+    const totalCompanies = await CompanyRef.get().then((snapshot) => snapshot.size);
 
     res.status(200).json({
       total_users: totalUsers,
@@ -49,12 +49,12 @@ router.get('/users', async (req, res) => {
 
     const usersSnapshot = await UsersRef.get();
     usersSnapshot.forEach((doc) => {
-      userNames.push(doc.data().name);
+      userNames.push(doc.data().fullName);
     });
 
-    const adminsSnapshot = await AdminRef.get();
+    const adminsSnapshot = await CompanyRef.get();
     adminsSnapshot.forEach((doc) => {
-      adminNames.push(doc.data().name);
+      adminNames.push(doc.data().companyName);
     });
 
     res.status(200).json({
