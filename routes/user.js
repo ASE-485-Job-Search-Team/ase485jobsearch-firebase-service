@@ -231,6 +231,44 @@ router.delete("/:userId/delete", async (req, res) => {
 // })
 
 
+router.post("/create", async (req, res) => {
+    try {
+        const { fullName, userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).send('userId is required');
+        }
+
+        const data = {
+            fullName,
+            resumeId: "",
+            userId
+        };
+        
+        userRef.doc(userId).set(data).then(
+            res.status(200).json({ 'post': 'success' })
+        );
+       
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+});
+
+
+router.put("/update/resume-id", async (req, res) => {
+    try {
+        const { userId, resumeId } = req.body;
+        const data = {
+            resumeId
+        };
+        
+        UsersRef.doc(userId).update(data).then(
+            res.status(200).json({ 'put': 'success' })
+        );
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+});
 
 
 
