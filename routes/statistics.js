@@ -9,10 +9,10 @@ const AdminRef = db.collection('Admins');
 router.use(express.json())
 
 router.use((req, res, next) => {
-    const d = new Date();
-    let text = d.toJSON();
-    console.log('Time: ', text)
-    next()
+  const d = new Date();
+  let text = d.toJSON();
+  console.log('Time: ', text)
+  next()
 })
 
 router.get('/snapshot', async (req, res) => {

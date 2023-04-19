@@ -9,9 +9,10 @@ const { bucket, db } = require("../util/admin");
 const User = require('../models/user')
 const Resume = require('../models/resume')
 
-const ResumesRef = db.collection('Resumes');
-const UsersRef = db.collection('Users');
-const userRef = db.collection('User'); //
+const ResumesRef = db.collection('Resume');
+
+const usersRef = db.collection('Users'); // Need to change to User
+const userRef = db.collection('User');
 const resumeRef = db.collection('Resume'); //
 const companyRef = db.collection('Company');
 const jobPostingRef = db.collection('JobPosting');
@@ -22,7 +23,9 @@ const jobRef = db.collection('Job');
 router.use(express.json())
 
 router.use((req, res, next) => {
-    console.log('Time: ', Date.now())
+    const d = new Date();
+    let text = d.toJSON();
+    console.log('Time: ', text)
     next()
 })
 
@@ -31,6 +34,13 @@ router.get("/:userId/applications", async (req, res) => {
     try {
         // Get the user ID from the request parameters
         const userId = req.params.userId;
+        const user = await userRef.doc(userId).get();
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
 
         // Get all job applications where the user ID matches
         const applications = await jobApplicationRef.where("userId", "==", userId).get();
@@ -54,6 +64,8 @@ router.get("/:userId/applications", async (req, res) => {
                 return {
                     ...applicationData,
                     id: applicationId,
+                    name: userData.fullName,
+                    resumeUrl: resumeData.downloadUrl,
                     jobPosting: {
                         ...jobPostingData,
                         id: jobPosting.id,
@@ -64,9 +76,6 @@ router.get("/:userId/applications", async (req, res) => {
             })
         );
 
-        // Log the application data to the console
-        // console.log(applicationData);
-
         // Send the application data in the response
         res.json(applicationData);
     } catch (err) {
@@ -75,18 +84,43 @@ router.get("/:userId/applications", async (req, res) => {
     }
 });
 
+router.get("/:userId/resume", async (req, res) => {
+    try {
+        const userId = req.params.userId
+        const user = await userRef.doc(userId).get();
+
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
+        res.json(resumeData);
+    } catch (err) {
+        res.status(400).send(err.message)
+    }
+});
 
 
-router.post("/", async (req, res) => {
+
+router.post("/create", async (req, res) => {
     try {
         //console.log(req.body)
         const data = req.body;
-        if (data.hasOwnProperty("user_id")) {
+        if (data.hasOwnProperty("userId")) {
+
+            //check if user already exists
+            const userId = req.body.userId
+            const user = await usersRef.where('userId', '==', userId).get();
+            if (!user.empty) {
+                return res.status(400).json({ message: 'User with that userId already exists.' });
+            }
+
         } else {
             //create new random id
-            data.user_id = UserRef.doc().id
+            data.userId = usersRef.doc().id
         }
-        const user = await UsersRef.doc(data.user_id).set(data).then(
+        const user = await usersRef.doc(data.userId).set(data).then(
             res.status(200).json({ 'post': 'success' })
         );
     } catch (err) {
@@ -94,39 +128,107 @@ router.post("/", async (req, res) => {
     }
 })
 
-router.get("/", async (req, res) => {
+router.get("/:userId", async (req, res) => {
+
     try {
-        const user_id = req.body.user_id
-        const result = await UsersRef.doc(user_id).get();
-        res.json(result.data());
+        const userId = req.params.userId
+        const user = await usersRef.where('userId', '==', userId).get();
+
+        if (user.empty) {
+            return res.status(400).json({ message: 'No user found.' });
+        }
+        else {
+            //userId SHOULD be unique
+            res.status(200).json(user.docs[0].data())
+        }
     } catch (err) {
         res.status(400).send(err.message)
     }
 })
 
-router.put("/", async (req, res) => {
-
+router.put("/userId/edit", async (req, res) => {
     try {
-        const user_id = req.body.user_id
-        UsersRef.doc(user_id).update(req.body).then(
-            res.status(200).json({ 'put': 'success' })
+        const userId = req.params.userId
+        //check if user exists
+        const user = await usersRef.where('userId', '==', userId).get();
+        if (user.empty) {
+            return res.status(400).json({ message: 'No company found.' });
+        }
+        usersRef.doc(userId).update(req.body).then(
+            res.status(200).json({ message: 'edit success' })
         );
     } catch (err) {
         res.status(400).send(err.message)
     }
 })
 
-router.delete("/", async (req, res) => {
+router.delete("/:userId/delete", async (req, res) => {
     try {
-        const user_id = req.body.user_id
-        UsersRef.doc(user_id).delete().then(
-            res.status(200).json({ 'post': 'success' })
+        const userId = req.params.userId
+        //check if user exists
+        const user = await usersRef.where('userId', '==', userId).get();
+        if (user.empty) {
+            return res.status(400).json({ message: 'No company found.' });
+        }
+        usersRef.doc(userId).delete().then(
+            res.status(200).json({ message: 'delete success' })
         );
     } catch (err) {
         res.status(400).send(err.message)
     }
 })
 
+//depricated
+// router.get('/:userId/application', async (req, res) => {
+//     try {
+//         //get array of resume_id
+//         const user_id = req.params.user_id
+//         var appArray = (await usersRef.doc(user_id).get()).data().applications
+//         var jobs = []
+//         //filter
+//         appArray = appArray.filter((value, index, array) => array.indexOf(value) === index);
+
+
+//         for (let i = 0; i < appArray.length; i++) {
+//             result = (await jobRef.doc(appArray[i]).get()).data()
+//             jobs.push(result)
+//         }
+
+//         res.status(200).json(jobs)
+//     }
+//     catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
+
+
+//submitting a job application
+//depricated
+//req.body {resume_id: String,job_id : String} sends resume with resume_id to job at job_id
+// router.post('/:user_id/submit/:job_id', async (req, res) => {
+//     try {
+
+//         const resume_id = req.body.resume_id
+//         const job_id = req.body.job_id
+//         //add resume_id to list of application
+//         var job = await (await jobRef.doc(job_id).get()).data()
+//         job.application.push(resume_id);
+//         await jobRef.doc(job_id).update(job).then(
+//             async () => {
+//                 //add job_id to users list of application
+//                 var resume = await (await resumeRef.doc(resume_id).get()).data()
+//                 var user = await (await usersRef.doc(resume.user_id).get()).data()
+//                 user.application.push(job_id)
+//                 usersRef.doc(resume.user_id).update(user).then(
+//                     res.status(200).json({ 'put': 'success' })
+//                 );
+//             }
+//         );
+
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 
 
