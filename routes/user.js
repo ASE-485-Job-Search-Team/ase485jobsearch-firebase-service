@@ -4,8 +4,9 @@ const router = express.Router()
 const multer = require("multer")
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).single('file');
+const { firebase } = require('../util/firebase');
 
-const { bucket, db } = require("../util/admin");
+const { bucket, db, admin } = require("../util/admin");
 const User = require('../models/user')
 const Resume = require('../models/resume')
 
@@ -103,30 +104,30 @@ router.get("/:userId/resume", async (req, res) => {
 
 
 
-router.post("/create", async (req, res) => {
-    try {
-        //console.log(req.body)
-        const data = req.body;
-        if (data.hasOwnProperty("userId")) {
+// router.post("/create", async (req, res) => {
+//     try {
+//         //console.log(req.body)
+//         const data = req.body;
+//         if (data.hasOwnProperty("userId")) {
 
-            //check if user already exists
-            const userId = req.body.userId
-            const user = await usersRef.where('userId', '==', userId).get();
-            if (!user.empty) {
-                return res.status(400).json({ message: 'User with that userId already exists.' });
-            }
+//             //check if user already exists
+//             const userId = req.body.userId
+//             const user = await usersRef.where('userId', '==', userId).get();
+//             if (!user.empty) {
+//                 return res.status(400).json({ message: 'User with that userId already exists.' });
+//             }
 
-        } else {
-            //create new random id
-            data.userId = usersRef.doc().id
-        }
-        const user = await usersRef.doc(data.userId).set(data).then(
-            res.status(200).json({ 'post': 'success' })
-        );
-    } catch (err) {
-        res.status(400).send(err.message)
-    }
-})
+//         } else {
+//             //create new random id
+//             data.userId = usersRef.doc().id
+//         }
+//         const user = await usersRef.doc(data.userId).set(data).then(
+//             res.status(200).json({ 'post': 'success' })
+//         );
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 router.get("/:userId", async (req, res) => {
 
@@ -242,7 +243,8 @@ router.post("/create", async (req, res) => {
         const data = {
             fullName,
             resumeId: "",
-            userId
+            userId,
+            created_at: new Date()
         };
         
         userRef.doc(userId).set(data).then(
