@@ -264,7 +264,7 @@ router.put("/update/resume-id", async (req, res) => {
             resumeId
         };
         
-        UsersRef.doc(userId).update(data).then(
+        userRef.doc(userId).update(data).then(
             res.status(200).json({ 'put': 'success' })
         );
     } catch (err) {
