@@ -30,28 +30,25 @@ router.use((req, res, next) => {
 //CRUD operations for company profile
 router.post("/create", async (req, res) => {
     try {
-        //console.log(req.body)
-        const data = req.body;
-        var companyId
+        const { companyName, companyId } = req.body;
 
-        if (data.hasOwnProperty("companyId")) {
-            //check if company already exists
-            companyId = req.body.companyId
-            const company = await companyRef.where('companyId', '==', companyId).get();
-            if (!company.empty) {
-                return res.status(400).json({ message: 'Company already exists.' });
-            }
-        }
-        //if no ID, create new random ID 
-        else {
-            data.company = companyRef.doc().id
+        if (!companyId) {
+            return res.status(400).send('companyId is required');
         }
 
-        await companyRef.doc(data.companyId).set(data).then(
-            res.status(200).json({ message: 'post success' })
+        const data = {
+            companyName,
+            companyLogoURL: "https://firebasestorage.googleapis.com/v0/b/jobhive-66671.appspot.com/o/AMZN.webp?alt=media&token=329fec1d-8f25-4a45-ac13-efd31cfdf4f2",
+            companyId,
+            created_at: new Date()
+        };
+        
+        companyRef.doc(companyId).set(data).then(
+            res.status(200).json({ 'post': 'success' })
         );
+       
     } catch (err) {
-        res.status(400).send(err.message)
+        res.status(400).send(err.message);
     }
 })
 
