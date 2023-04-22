@@ -57,36 +57,66 @@ router.get("/job-postings", async (req, res) => {
 });
 
 //CRUD operations for job profile
-//req.body 
-router.post("/create", async (req, res) => {
+//req.body
+router.post('/create', async (req, res) => {
     try {
         const data = req.body;
-        //post a new job
-        if (data.hasOwnProperty("jobId")) {
-        } else {
-            //create new random id
-            data.jobId = jobRef.doc().id
+        // Check if job already has a jobId or generate a random one
+        if (!data.hasOwnProperty('jobId')) {
+            data.jobId = jobPostingRef.doc().id;
         }
 
-        if (data.hasOwnProperty("companyId")) {
-            const company = await companyRef.where('companyId', '==', data.companyId).get();
-            if (company.empty) {
-                res.status(200).send({ msg: "Could not find company with companyId" });
-                return;
-            }
-        } else {
-            //can't create a job posting without companyId
-            res.status(200).send({ msg: "Missing companyId or invalid" });
+        // Check if companyId is provided and exists in the company collection
+        if (!data.hasOwnProperty('companyId')) {
+            res.status(400).send({ msg: 'Missing companyId' });
             return;
         }
-        jobRef.doc(data.jobId).set(data).then(
-            res.status(200).json({ 'post': 'success' })
-        );
+
+        const companySnapshot = await companyRef.where('companyId', '==', data.companyId).get();
+
+        if (companySnapshot.empty) {
+            res.status(404).send({ msg: `Company with companyId ${data.companyId} not found` });
+            return;
+        }
+
+        // Save job posting to job collection
+        await jobPostingRef.doc(data.jobId).set(data);
+        res.status(201).json({ msg: 'Job posting created', data });
 
     } catch (err) {
-        res.status(400).send(err.message)
+        console.error(err);
+        res.status(500).send({ msg: 'Server error' });
     }
-})
+});
+// router.post("/create", async (req, res) => {
+//     try {
+//         const data = req.body;
+//         //post a new job
+//         if (data.hasOwnProperty("jobId")) {
+//         } else {
+//             //create new random id
+//             data.jobId = jobRef.doc().id
+//         }
+//
+//         if (data.hasOwnProperty("companyId")) {
+//             const company = await companyRef.where('companyId', '==', data.companyId).get();
+//             if (company.empty) {
+//                 res.status(200).send({ msg: "Could not find company with companyId" });
+//                 return;
+//             }
+//         } else {
+//             //can't create a job posting without companyId
+//             res.status(200).send({ msg: "Missing companyId or invalid" });
+//             return;
+//         }
+//         jobRef.doc(data.jobId).set(data).then(
+//             res.status(200).json({ 'post': 'success' })
+//         );
+//
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 
 router.post("/apply", async (req, res) => {
