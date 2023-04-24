@@ -4,14 +4,16 @@ const router = express.Router()
 const multer = require("multer")
 const storage = multer.memoryStorage();
 const upload = multer({ storage: storage }).single('file');
+const { firebase } = require('../util/firebase');
 
-const { bucket, db } = require("../util/admin");
+const { bucket, db, admin } = require("../util/admin");
 const User = require('../models/user')
 const Resume = require('../models/resume')
 
 const ResumesRef = db.collection('Resume');
 
-const usersRef = db.collection('Users');
+const usersRef = db.collection('Users'); // Need to change to User
+const userRef = db.collection('User');
 const resumeRef = db.collection('Resume'); //
 const companyRef = db.collection('Company');
 const jobPostingRef = db.collection('JobPosting');
@@ -33,6 +35,13 @@ router.get("/:userId/applications", async (req, res) => {
     try {
         // Get the user ID from the request parameters
         const userId = req.params.userId;
+        const user = await userRef.doc(userId).get();
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
+        }
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
 
         // Get all job applications where the user ID matches
         const applications = await jobApplicationRef.where("userId", "==", userId).get();
@@ -56,6 +65,8 @@ router.get("/:userId/applications", async (req, res) => {
                 return {
                     ...applicationData,
                     id: applicationId,
+                    name: userData.fullName,
+                    resumeUrl: resumeData.downloadUrl,
                     jobPosting: {
                         ...jobPostingData,
                         id: jobPosting.id,
@@ -66,9 +77,6 @@ router.get("/:userId/applications", async (req, res) => {
             })
         );
 
-        // Log the application data to the console
-        // console.log(applicationData);
-
         // Send the application data in the response
         res.json(applicationData);
     } catch (err) {
@@ -77,32 +85,49 @@ router.get("/:userId/applications", async (req, res) => {
     }
 });
 
-
-
-router.post("/create", async (req, res) => {
+router.get("/:userId/resume", async (req, res) => {
     try {
-        //console.log(req.body)
-        const data = req.body;
-        if (data.hasOwnProperty("userId")) {
+        const userId = req.params.userId
+        const user = await userRef.doc(userId).get();
 
-            //check if user already exists
-            const userId = req.body.userId
-            const user = await usersRef.where('userId', '==', userId).get();
-            if (!user.empty) {
-                return res.status(400).json({ message: 'User with that userId already exists.' });
-            }
-
-        } else {
-            //create new random id
-            data.userId = usersRef.doc().id
+        if (!user.exists) {
+            return res.status(404).json({ error: "User not found" });
         }
-        const user = await usersRef.doc(data.userId).set(data).then(
-            res.status(200).json({ 'post': 'success' })
-        );
+        const userData = user.data();
+        const resumeSnapshot = await resumeRef.doc(userData.resumeId).get();
+        const resumeData = resumeSnapshot.data();
+        res.json(resumeData);
     } catch (err) {
         res.status(400).send(err.message)
     }
-})
+});
+
+
+
+// router.post("/create", async (req, res) => {
+//     try {
+//         //console.log(req.body)
+//         const data = req.body;
+//         if (data.hasOwnProperty("userId")) {
+
+//             //check if user already exists
+//             const userId = req.body.userId
+//             const user = await usersRef.where('userId', '==', userId).get();
+//             if (!user.empty) {
+//                 return res.status(400).json({ message: 'User with that userId already exists.' });
+//             }
+
+//         } else {
+//             //create new random id
+//             data.userId = usersRef.doc().id
+//         }
+//         const user = await usersRef.doc(data.userId).set(data).then(
+//             res.status(200).json({ 'post': 'success' })
+//         );
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 router.get("/:userId", async (req, res) => {
 
@@ -207,6 +232,45 @@ router.delete("/:userId/delete", async (req, res) => {
 // })
 
 
+router.post("/create", async (req, res) => {
+    try {
+        const { fullName, userId } = req.body;
+
+        if (!userId) {
+            return res.status(400).send('userId is required');
+        }
+
+        const data = {
+            fullName,
+            resumeId: "",
+            userId,
+            created_at: new Date()
+        };
+        
+        userRef.doc(userId).set(data).then(
+            res.status(200).json({ 'post': 'success' })
+        );
+       
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+});
+
+
+router.put("/update/resume-id", async (req, res) => {
+    try {
+        const { userId, resumeId } = req.body;
+        const data = {
+            resumeId
+        };
+        
+        userRef.doc(userId).update(data).then(
+            res.status(200).json({ 'put': 'success' })
+        );
+    } catch (err) {
+        res.status(400).send(err.message);
+    }
+});
 
 
 

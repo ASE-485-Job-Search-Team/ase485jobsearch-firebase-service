@@ -55,51 +55,112 @@ router.get("/:resumeId", async (req, res) => {
     }
 })
 
-
 router.post("/:userId/createResume", upload, async (req, res) => {
     try {
-        const file = req.file;
-        const name = file.originalname;
-        const bucketFile = bucket.file(name);
-        const userId = req.params.userId
-        const data = req.body;
-        //if user already has resume
-        const resume = await resumesRef.where('userId', '==', userId).get();
-        if (!resume.empty) {
-            return res.status(400).json({ message: 'User already has existing resume.' });
+        // Check if a file was uploaded
+        if (!req.file) {
+            return res.status(400).json({ message: "No file uploaded" });
         }
-        if (data && data.resumeId) {
-        } else {
-            //create new random id
-            const resumeId = resumesRef.doc().id
-            data.resumeId = resumeId;
+
+        const fileName = req.file.originalname;
+        const bucketFile = bucket.file(fileName);
+        const userId = req.params.userId;
+        const resumeId = req.body.resumeId || resumesRef.doc().id;
+
+        // Check if user already has a resume
+        const resumeSnapshot = await resumesRef.where("userId", "==", userId).get();
+        if (!resumeSnapshot.empty) {
+            return res
+                .status(400)
+                .json({ message: "User already has an existing resume" });
         }
-        //update bucket with pdf
-        bucketFile
-            .save(new Buffer.from((file.buffer)))
-            .then(() => {
-                //update database with resume entry
-                var downloadUrl = `https://storage.googleapis.com/${bucket.name}/${name}`
-                resumesRef.doc(data.resumeId).set({
-                    "fileName": name,
-                    "resumeId": data.resumeId,
-                    'userId': userId,
-                    'downloadUrl': downloadUrl
-                }).then(() => {
-                    res.status(200).json({
-                        status: 'success',
-                        data: Object.assign({}, bucketFile.metadata, {
-                            userId: userId,
-                            resumeId: data.resumeId,
-                            downloadURL: downloadUrl,
-                        })
-                    });
-                })
-            })
+
+        // Save file to bucket
+        await bucketFile.save(req.file.buffer);
+
+        // Modify bucket permissions to allow public access
+        await bucketFile.makePublic();
+
+        // Generate signed URL for temporary public access
+        const [url] = await bucketFile.getSignedUrl({
+            action: "read",
+            expires: "03-17-2025", // Replace with desired expiration date
+        });
+
+        // Add resume entry to database
+        const resumeData = {
+            fileName: fileName,
+            resumeId: resumeId,
+            userId: userId,
+            downloadUrl: url, // Use the generated signed URL
+        };
+        await resumesRef.doc(resumeId).set(resumeData);
+
+        // Update resumeId in user document
+        await usersRef.doc(userId).update({ resumeId: resumeId });
+
+        // Return success response
+        const responseData = {
+            status: "success",
+            data: Object.assign({}, bucketFile.metadata, {
+                userId: userId,
+                resumeId: resumeId,
+                downloadUrl: url, // Use the generated signed URL
+            }),
+        };
+        res.status(200).json(responseData);
     } catch (err) {
-        res.status(400).send(err.message)
+        console.error(err);
+        res.status(500).json({ message: "Something went wrong" });
     }
-})
+});
+
+
+
+// router.post("/:userId/createResume", upload, async (req, res) => {
+//     try {
+//         const file = req.file;
+//         const name = file.originalname;
+//         const bucketFile = bucket.file(name);
+//         const userId = req.params.userId
+//         const data = req.body;
+//         //if user already has resume
+//         const resume = await resumesRef.where('userId', '==', userId).get();
+//         if (!resume.empty) {
+//             return res.status(400).json({ message: 'User already has existing resume.' });
+//         }
+//         if (data && data.resumeId) {
+//         } else {
+//             //create new random id
+//             const resumeId = resumesRef.doc().id
+//             data.resumeId = resumeId;
+//         }
+//         //update bucket with pdf
+//         bucketFile
+//             .save(new Buffer.from((file.buffer)))
+//             .then(() => {
+//                 //update database with resume entry
+//                 var downloadUrl = `https://storage.googleapis.com/${bucket.name}/${name}`
+//                 resumesRef.doc(data.resumeId).set({
+//                     "fileName": name,
+//                     "resumeId": data.resumeId,
+//                     'userId': userId,
+//                     'downloadUrl': downloadUrl
+//                 }).then(() => {
+//                     res.status(200).json({
+//                         status: 'success',
+//                         data: Object.assign({}, bucketFile.metadata, {
+//                             userId: userId,
+//                             resumeId: data.resumeId,
+//                             downloadURL: downloadUrl,
+//                         })
+//                     });
+//                 })
+//             })
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 router.delete("/:resumeId/delete", async (req, res) => {
     const resumeId = req.params.resumeId

@@ -23,37 +23,100 @@ router.use((req, res, next) => {
     next()
 })
 
-//CRUD operations for job profile
-//req.body 
-router.post("/create", async (req, res) => {
+router.get("/job-postings", async (req, res) => {
     try {
-        const data = req.body;
-        //post a new job
-        if (data.hasOwnProperty("jobId")) {
-        } else {
-            //create new random id
-            data.jobId = jobRef.doc().id
-        }
+        // Get all job postings
+        const jobPostings = await jobPostingRef.get();
+        console.log(jobPostings.docs[0].data());
 
-        if (data.hasOwnProperty("companyId")) {
-            const company = await companyRef.where('companyId', '==', data.companyId).get();
-            if (company.empty) {
-                res.status(200).send({ msg: "Could not find company with companyId" });
-                return;
-            }
-        } else {
-            //can't create a job posting without companyId
-            res.status(200).send({ msg: "Missing companyId or invalid" });
-            return;
-        }
-        jobRef.doc(data.jobId).set(data).then(
-            res.status(200).json({ 'post': 'success' })
+        // Use Promise.all() to map over the job postings and get the associated company data for each one
+        const data = await Promise.all(
+            jobPostings.docs.map(async (jobPosting) => {
+                // Get the data for the company associated with the job posting
+                const company = await companyRef.doc(jobPosting.data().companyId).get()
+
+                // Log the job posting and company data to the console
+                console.log({ ...jobPosting.data(), company: company.data().companyName, company: company.data().companyLogoURL, id: jobPosting.id });
+
+                // Return an object with the job posting data, company name and logo, and ID
+                return {
+                    ...jobPosting.data(),
+                    company: company.data().companyName,
+                    companyLogo: company.data().companyLogoURL,
+                    id: jobPosting.id
+                };
+            })
         );
 
+        // Send the data in the response
+        res.json(data);
     } catch (err) {
-        res.status(400).send(err.message)
+        // Handle any errors
+        res.status(400).send(err.message);
     }
-})
+});
+
+//CRUD operations for job profile
+//req.body
+router.post('/create', async (req, res) => {
+    try {
+        const data = req.body;
+        // Check if job already has a jobId or generate a random one
+        if (!data.hasOwnProperty('jobId')) {
+            data.jobId = jobPostingRef.doc().id;
+        }
+
+        // Check if companyId is provided and exists in the company collection
+        if (!data.hasOwnProperty('companyId')) {
+            res.status(400).send({ msg: 'Missing companyId' });
+            return;
+        }
+
+        const companySnapshot = await companyRef.where('companyId', '==', data.companyId).get();
+
+        if (companySnapshot.empty) {
+            res.status(404).send({ msg: `Company with companyId ${data.companyId} not found` });
+            return;
+        }
+
+        // Save job posting to job collection
+        await jobPostingRef.doc(data.jobId).set(data);
+        res.status(201).json({ msg: 'Job posting created', data });
+
+    } catch (err) {
+        console.error(err);
+        res.status(500).send({ msg: 'Server error' });
+    }
+});
+// router.post("/create", async (req, res) => {
+//     try {
+//         const data = req.body;
+//         //post a new job
+//         if (data.hasOwnProperty("jobId")) {
+//         } else {
+//             //create new random id
+//             data.jobId = jobRef.doc().id
+//         }
+//
+//         if (data.hasOwnProperty("companyId")) {
+//             const company = await companyRef.where('companyId', '==', data.companyId).get();
+//             if (company.empty) {
+//                 res.status(200).send({ msg: "Could not find company with companyId" });
+//                 return;
+//             }
+//         } else {
+//             //can't create a job posting without companyId
+//             res.status(200).send({ msg: "Missing companyId or invalid" });
+//             return;
+//         }
+//         jobRef.doc(data.jobId).set(data).then(
+//             res.status(200).json({ 'post': 'success' })
+//         );
+//
+//     } catch (err) {
+//         res.status(400).send(err.message)
+//     }
+// })
 
 
 router.post("/apply", async (req, res) => {
@@ -130,40 +193,6 @@ router.get("/:jobId", async (req, res) => {
         res.status(400).send(err.message)
     }
 })
-
-router.get("/job-postings", async (req, res) => {
-    try {
-        // Get all job postings
-        const jobPostings = await jobPostingRef.get();
-
-        // Use Promise.all() to map over the job postings and get the associated company data for each one
-        const data = await Promise.all(
-            jobPostings.docs.map(async (jobPosting) => {
-                // Get the data for the company associated with the job posting
-                const company = await companyRef.doc(jobPosting.data().companyId).get()
-
-                // Log the job posting and company data to the console
-                // console.log({ ...jobPosting.data(), company: company.data() })
-
-                // Return an object with the job posting data, company name and logo, and ID
-                return {
-                    ...jobPosting.data(),
-                    company: company.data().companyName,
-                    companyLogo: company.data().companyLogoURL,
-                    id: jobPosting.id
-                };
-            })
-        );
-
-        // Send the data in the response
-        res.json(data);
-    } catch (err) {
-        // Handle any errors
-        res.status(400).send(err.message);
-    }
-});
-
-
 
 //submitting a job application now is post("/apply")
 
