@@ -155,6 +155,7 @@ router.get("/:companyId/jobs/:jobId/jobApplications", async (req, res) => {
     }
 })
 
+
 //gets all applications for all jobs
 
 router.get("/:companyId/jobs/allJobApplications", async (req, res) => {
@@ -257,6 +258,7 @@ router.get("/:companyId/jobs/:jobId/users", async (req, res) => {
         res.status(400).send(err.message)
     }
 })
+
 
 
 
