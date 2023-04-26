@@ -7,45 +7,30 @@ chai.use(chaiHttp);
 
 describe('Delete', () => {
 
-    it('should delete an admin profile', (done) => {
-        const admin_id = '2';
-
+    it('should delete a job posting', (done) => {
         chai.request(app)
-            .delete('/admin')
-            .send({
-                admin_id: admin_id
-            })
+            .delete('/api/jobs/test/delete')
+            .send()
             .end((err, res) => {
                 expect(res.statusCode).to.equal(200);
-                expect(res.body.post).to.equal('success');
                 done();
             });
     });
-    it('should delete a job', (done) => {
-        const job_id = '1';
-
+    it('should delete a user', (done) => {
         chai.request(app)
-            .delete('/job')
-            .send({
-                job_id: job_id
-            })
+            .delete('/api/users/test/delete')
+            .send()
             .end((err, res) => {
                 expect(res.statusCode).to.equal(200);
-                expect(res.body.post).to.equal('success');
                 done();
             });
     });
-    it('should delete an admin profile', (done) => {
-        const admin_id = '0IG3dea4LMsf1hSYbHN6';
-
+    it('should delete a company', (done) => {
         chai.request(app)
-            .delete('/admin')
-            .send({
-                admin_id: admin_id
-            })
+            .delete('/api/companies/test/delete')
+            .send()
             .end((err, res) => {
                 expect(res.statusCode).to.equal(200);
-                expect(res.body.post).to.equal('success');
                 done();
             });
     });

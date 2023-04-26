@@ -42,11 +42,11 @@ router.post("/create", async (req, res) => {
             companyId,
             created_at: new Date()
         };
-        
+
         companyRef.doc(companyId).set(data).then(
             res.status(200).json({ 'post': 'success' })
         );
-       
+
     } catch (err) {
         res.status(400).send(err.message);
     }
@@ -177,7 +177,7 @@ router.get("/:companyId/jobs/allJobApplications", async (req, res) => {
             return res.status(400).json({ message: 'No company found.' });
         }
         //get all jobs from company
-        const jobsSnapshot = await jobRef.where('companyId', '==', companyId).get();
+        const jobsSnapshot = await jobApplicationRef.where('companyId', '==', companyId).get();
         const jobsData = [];
         const jobApplications = [];
         //get all jobs
@@ -208,7 +208,7 @@ router.get("/:companyId/jobs/:jobId/resumes", async (req, res) => {
             return res.status(400).json({ message: 'No company found.' });
         }
         //check if job exists
-        const job = await jobRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
+        const job = await jobPostingRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
         if (job.empty) {
             return res.status(400).json({ message: 'No job found.' });
         }
@@ -244,7 +244,7 @@ router.get("/:companyId/jobs/:jobId/users", async (req, res) => {
             return res.status(400).json({ message: 'No company found.' });
         }
         //check if job exists
-        const job = await jobRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
+        const job = await jobPostingRef.where('companyId', '==', companyId).where('jobId', '==', jobId).get();
         if (job.empty) {
             return res.status(400).json({ message: 'No job found.' });
         }
